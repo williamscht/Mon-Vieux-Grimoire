@@ -2,18 +2,14 @@ const express = require('express');
 const mongoose = require('mongoose');
 require('dotenv').config();
 
-
-const Books = require('./models/Books');
-
 const app = express();
 
-// Import du routeur des livres
+// Import des routeurs
 const bookRoutes = require('./routes/books');
+const userRoutes = require('./routes/user');
 
-console.log('📂 Type de bookRoutes :', typeof bookRoutes, bookRoutes);
-
+// Middleware pour parser le JSON
 app.use(express.json());
-
 
 // Middleware CORS
 app.use((req, res, next) => {
@@ -29,27 +25,19 @@ app.use((req, res, next) => {
   next();
 });
 
-
-//Connexion à MDB//
+// Connexion à MongoDB
 mongoose
-  .connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
+  .connect(process.env.MONGO_URI)
   .then(() => console.log('✅ Connexion MongoDB réussie !'))
-  .catch((error) => console.log('❌ Connexion MongoDB échouée :', error)); 
-  
+  .catch((error) => console.log('❌ Connexion MongoDB échouée :', error));
 
-
-// Enregistrement du routeur
+// Enregistrement des routeurs
 app.use('/api/books', bookRoutes);
+app.use('/api/auth', userRoutes);
 
-
-//Connexion Test//
+// Route de test
 app.get('/', (req, res) => {
   res.send('🚀 Serveur Mon Vieux Grimoire connecté à MongoDB !');
 });
-
-
 
 module.exports = app;
