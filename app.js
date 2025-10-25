@@ -8,8 +8,11 @@ const app = express();
 const bookRoutes = require('./routes/books');
 const userRoutes = require('./routes/user');
 
+const path = require('path');
+
 // Middleware pour parser le JSON
 app.use(express.json());
+
 
 // Middleware CORS
 app.use((req, res, next) => {
@@ -30,6 +33,9 @@ mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log('✅ Connexion MongoDB réussie !'))
   .catch((error) => console.log('❌ Connexion MongoDB échouée :', error));
+
+app.use('/images', express.static(path.join(__dirname, 'images')));
+
 
 // Enregistrement des routeurs
 app.use('/api/books', bookRoutes);
