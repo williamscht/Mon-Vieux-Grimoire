@@ -3,8 +3,7 @@ const fs = require('fs');
 
 // CREATE — POST /api/books
 exports.createBook = (req, res) => {
-    console.log("📥 Fichier reçu :", req.file);
-    console.log("📦 Corps de la requête :", req.body);
+   
   try {
     const bookObject = JSON.parse(req.body.book); 
     delete bookObject._id;
@@ -52,7 +51,10 @@ exports.modifyBook = (req, res) => {
       }
 
       Books.updateOne({ _id: req.params.id }, { ...bookObject, _id: req.params.id })
-        .then(() => res.status(200).json({ message: 'Livre modifié avec succès !' }))
+        .then(() => {
+          Books.findOne({ _id: req.params.id }) 
+            .then((updatedBook) => res.status(200).json(updatedBook));
+        })
         .catch(error => res.status(400).json({ error }));
     })
     .catch(error => res.status(500).json({ error }));
@@ -84,4 +86,63 @@ exports.getAllBooks = (req, res) => {
   Books.find()
     .then(books => res.status(200).json(books))
     .catch(error => res.status(400).json({ error }));
+};
+
+
+
+// Attribution d'une note à un livre 
+exports.rateBook = async (req, res) => {
+  const userId = req.auth.userId;
+  const rating = Number(req.body.rating);
+
+  if (!Number.isFinite(rating) || rating < 0 || rating > 5) {
+    return res.status(400).json({ message: 'La note doit être comprise entre 0 et 5.' });
+  }
+
+  try {
+    const book = await Books.findById(req.params.id);
+    if (!book) {
+      return res.status(404).json({ message: 'Livre non trouvé.' });
+    }
+
+    // Vérifie si l'utilisateur a déjà noté ce livre
+    const existingRating = book.ratings.find(r => r.userId === userId);
+    if (existingRating) {
+      return res.status(400).json({ message: 'Vous avez déjà noté ce livre.' });
+    }
+
+    // Si le livre n’a pas de notes cohérentes (comme dans data.json)
+    if ((!book.ratings || book.ratings.length === 0) && book.averageRating) {
+      // On transforme la moyenne initiale en une note "fictive"
+      book.ratings.push({ userId: 'system', grade: book.averageRating });
+    }
+
+    // Ajoute la note réelle de l’utilisateur
+    book.ratings.push({ userId, grade: rating });
+
+    // Recalcule de la moyenne réelle
+    const total = book.ratings.reduce((sum, r) => sum + Number(r.grade || 0), 0);
+    book.averageRating = parseFloat((total / book.ratings.length).toFixed(1));
+
+    const updatedBook = await book.save();
+    res.status(200).json(updatedBook);
+  } catch (error) {
+    res.status(400).json({ error });
+  }
+};
+
+exports.getBestRatedBooks = async (req, res) => {
+  try {
+    // Récupère tous les livres
+    const books = await Books.find();
+
+    // Trie par note moyenne décroissante et limite à 3
+    const bestRated = books
+      .sort((a, b) => b.averageRating - a.averageRating)
+      .slice(0, 3);
+
+    res.status(200).json(bestRated);
+  } catch (error) {
+    res.status(400).json({ error });
+  }
 };
